@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLED Clock Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-color: #242424;
+            --text-color: #e1e1e1;
+            --accent-color: #4392f1;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; padding: 15px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .container { width: 100%; max-width: 420px; }
+        .card {
+            background: var(--card-color);
+            border-radius: 16px;
+            padding: 20px; margin-bottom: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        h2 { font-size: 1.1rem; margin: 0 0 15px 0; width: 100%; text-align: left; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;}
+        #picker { margin: 10px 0; }
+        
+        /* Sliders estilo WLED */
+        .slider-container { width: 100%; display: flex; align-items: center; gap: 10px; margin-top: 10px;}
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 8px;
+            background: #3a3a3a; border-radius: 4px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px;
+            border-radius: 50%; background: var(--text-color); cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        }
+
+        /* Botonera de modos */
+        .grid-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+        .btn {
+            background: #333; color: white; border: none; padding: 12px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn:substring-active { background: var(--accent-color); }
+        .btn-preset { border-radius: 50%; width: 40px; height: 40px; border: 2px solid #333; cursor: pointer;}
+        .presets-container { display: flex; gap: 12px; width: 100%; justify-content: flex-start; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <h2>Color</h2>
+            <div id="picker"></div>
+            
+            <div class="presets-container">
+                <div class="btn-preset" style="background: #ff0000;" onclick="setPreset(255,0,0)"></div>
+                <div class="btn-preset" style="background: #00ff00;" onclick="setPreset(0,255,0)"></div>
+                <div class="btn-preset" style="background: #0000ff;" onclick="setPreset(0,0,255)"></div>
+                <div class="btn-preset" style="background: #ffaa00;" onclick="setPreset(255,170,0)"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Brillo Master</h2>
+            <div class="slider-container">
+                <span>🌑</span>
+                <input type="range" min="10" max="255" value="255" oninput="sendPost('/brightness', 'brightness='+this.value)">
+                <span>☀️</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Modos del Reloj</h2>
+            <div class="grid-modes">
+                <button class="btn" onclick="sendPost('/clock')">🕒 Reloj</button>
+                <button class="btn" onclick="sendPost('/temperature', 'correction=-3.0&symbol=12')">🌡️ Temp</button>
+                <button class="btn" onclick="sendPost('/scoreboard', 'left=0&right=0')">⚽ Score</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar la rueda de color de iro.js (Estilo WLED)
+        var colorPicker = new iro.ColorPicker("#picker", {
+            width: 220,
+            color: "#ff0000",
+            borderWidth: 1,
+            borderColor: "#fff",
+            layout: [
+                { component: iro.ui.Wheel, }, // Rueda circular
+            ]
+        });
+
+        // Captura el movimiento de la rueda y envía los datos al ESP8266
+        // Se usa un "throttle" (retardo) interno de iro.js para no saturar al ESP8266 al arrastrar el dedo
+        colorPicker.on('color:change', function(color) {
+            let r = color.rgb.r;
+            let g = color.rgb.g;
+            let b = color.rgb.b;
+            sendPost('/color', `r=${r}&g=${g}&b=${b}`);
+        });
+
+        function setPreset(r, g, b) {
+            colorPicker.color.rgb = { r: r, g: g, b: b }; // Mueve la rueda visualmente
+            sendPost('/color', `r=${r}&g=${g}&b=${b}`);
+        }
+
+        function sendPost(url, data = '') {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: data
+            }).catch(err => console.log("Error de conexión"));
+        }
+    </script>
+</body>
+</html>
